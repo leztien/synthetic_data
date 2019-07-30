@@ -1,7 +1,7 @@
 
 
 """
-make n-dimensional dataset with k lineraly seperable classes (for classification problems)
+make n-dimensional dataset with k lineraly seperable classes (n-dimensional "hyper-blobs")
 """
 
 import numpy as np
@@ -129,7 +129,6 @@ def make_data_for_classification(m:'total number of data-points',
     return(X,y)
 
 #====================================================================================
-
 
 
 def visualize(visualize_tSNE=True):
