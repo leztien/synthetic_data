@@ -56,7 +56,7 @@ def make_blobs(n_blobs=3, n_points=100):
     
     X = np.concatenate(X, axis=0)
     X += np.abs(X.min(axis=0))
-    return(X,y)
+    return(X, np.array(y, dtype='uint8'))
 
 
 #=========================================================================================
