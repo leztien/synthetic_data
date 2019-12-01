@@ -1,6 +1,8 @@
 
 import numpy as np
-def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, gmm=False, balanced_classes=True, seed=None):
+def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, 
+                      balanced_classes=True, space_between_classes=False, 
+                      gmm=False, seed=None):
     """
     function generating synthetic multidimensional data for ANN by forward propagation
     -the multidimensional space is linearly filled with data-points
@@ -15,8 +17,10 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, gmm=False, balanced_classes=Tr
     K = number of classes
     L = number of hidden layers
     u = number of units in the hidden layers
-    gmm = fit GMM's to the generated data and draw samples from these GMM's (if int = number of gaussians per class)
+    
     balanced_classes = average entropy to ensure (relatively) balanced classes (False = only ensure presence of all K classes)
+    space_between_classes = space between classes is achieved by deleting points with lower probabilities (higher value = more space)
+    gmm = fit GMM's to the generated data and draw samples from these GMM's (if int = number of gaussians per class)
     seed = if True then the generated seed is printed out for the user's reference
     """
 
@@ -25,13 +29,19 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, gmm=False, balanced_classes=Tr
     if balanced_classes: balanced_classes = 0.98 if balanced_classes is True else balanced_classes  #default value
     assert n >= 2,"error2"
     assert all(isinstance(e,int)and(e>0) for e in (m,n,K,L,u)),"error3"
+    #take care of variable space_between_classes:
+    assert space_between_classes in (False,None,True) or 0 < space_between_classes < .7,"error4"
+    if space_between_classes:
+        space_between_classes = 0.25 if space_between_classes is True else space_between_classes  #default value
+        m_original = m
+        m = int(m / (1-space_between_classes))
 
     #randomness
     if seed:
         if seed is True:
             from random import randint
             seed = randint(0,int(2**32-1))
-            print("random seed =", seed, "(you can use this random number to reproduce the generated dataset)")
+            print("random seed =", seed)
             make_data_for_ANN.seed = seed
         np.random.seed(seed)
 
@@ -44,10 +54,10 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, gmm=False, balanced_classes=Tr
     def softmax(Z):  #activation function for the output layer
         return np.exp(Z) / np.exp(Z).sum(0, keepdims=True)
 
-    #create data
+    #CREATE DATA
     X = np.random.uniform(-1,1, size=(m,n))
 
-    #find suitabel weights
+    #GENERATE APPROPRIATE WEIGHTS (in a loop)
     shapes = (n,) + (u,)*L + (K,)  #e.g. (3, 32, 32, 2)
     temp = (0, 'y')
     for attempt in range(300):  # number of attempts to produce a balanced dataset
@@ -59,8 +69,9 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, gmm=False, balanced_classes=Tr
         for l,W in enumerate(WW):
             Z = np.matmul(W,A)
             A = (np.tanh if l<len(WW)-1 else softmax)(Z)
+        P = A.T
         y = A.T.argmax(1)
-
+        
         #check presence of all classes and class balance:
         if len(set(y)) == K: #ensures all classes are present (although maybe unbalanced)
             if not balanced_classes: break
@@ -74,10 +85,40 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, gmm=False, balanced_classes=Tr
         y = temp[1]  # get the labels with the best yet average entropy
         #check the y
         if isinstance(y, str) or len(set(y))<K:
-            class MissingClassesGenerated(BaseException):pass
+            class MissingClasses(BaseException):pass
             msg = "Generated labels miss a class or classes. Increase the number of units/layers"
-            raise MissingClassesGenerated(msg)
-
+            raise MissingClasses(msg)
+    #-----end of the main loop----------------
+    
+    #add space between classes
+    if space_between_classes:
+        threshold = np.quantile(P.max(1), q=space_between_classes)
+        mask = P.max(1) > threshold
+        X = X[mask]  # the points with lower probabilities are discarded
+        y = y[mask]  # the points with lower probabilities are discarded
+        m = len(y)   # do not delete this!
+        
+        #add or remove data-points to ammount to the original m
+        if len(y) < m_original:
+            c = np.bincount(y).argmin() # c = the class with the loweest number of data-poinst
+            n_missing = m_original - len(y)
+            mask = y==c
+            nx = np.random.permutation(len(X[mask]))[:n_missing]
+            
+            yadditional = y[mask][nx]
+            Xadditional = X[mask][nx] + np.random.normal(0, 0.001, size=(len(yadditional),n))
+            
+            X = np.vstack([X,Xadditional])
+            y = np.concatenate([y,yadditional])
+            m = len(y)    #do not delete this!
+            if len(set(y))<K:
+                from warnings import warn
+                msg = "missing class(es)! Turn on 'balanced_classes', deactivate 'space_between_classes' or increase m"
+                warn(msg, Warning)
+                
+        elif len(y) > m_original:
+            raise RuntimeWarning("ADD CODE FOR: too many data-points")
+    
     #GMM
     if gmm:
         from sklearn.mixture import GaussianMixture
@@ -101,18 +142,25 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, gmm=False, balanced_classes=Tr
 
 
 if __name__ == '__main__':  #DEMO
-    X,y = make_data_for_ANN(m=10000, n=2, K=5, L=3, u=16, gmm=True, balanced_classes=True, seed=True)
+    X,y = make_data_for_ANN(m=10000, n=2, K=5, L=2, u=16, 
+                            balanced_classes=True, space_between_classes=True, 
+                            gmm=True, seed=True)
 
     m,n = X.shape
-    print("labels counts =", np.bincount(y))
-
+    print("labels counts =", np.bincount(y), m)
+    
+    
     from sklearn.neural_network import MLPClassifier
     md = MLPClassifier((16,16,16))
     md.fit(X,y)
     acc = md.score(X,y)
     print("sklearn MLP accuracy =", round(acc,2))
-
+    
+    
     if n == 2:
         import matplotlib.pyplot as plt
         plt.scatter(*X.T, c=y, s=5, cmap='rainbow')
         plt.show()
+
+
+
