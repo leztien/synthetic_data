@@ -1,6 +1,5 @@
-
 import numpy as np
-def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16, 
+def make_data_for_ANN(m=100, n=3, k=2, l=1, u=16, 
                       balanced_classes=True, space_between_classes=False, 
                       gmm=False, seed=None):
     """
@@ -11,11 +10,10 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16,
     -optionally (spherical) GMM's can be fit to the generated data and data-points sampled from these GMM's
     -the data-points are in the range of (-1,+1)
     -the data is sorted by the labels (i.e. rememebr to shuffle!)
-
     m = number of data-points
     n = number of features
-    K = number of classes
-    L = number of hidden layers
+    k = number of classes
+    l = number of hidden layers
     u = number of units in the hidden layers
     
     balanced_classes = average entropy to ensure (relatively) balanced classes (False = only ensure presence of all K classes)
@@ -28,7 +26,7 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16,
     assert balanced_classes in (False,None,True) or 0 < balanced_classes < 1.0,"error1"
     if balanced_classes: balanced_classes = 0.98 if balanced_classes is True else balanced_classes  #default value
     assert n >= 2,"error2"
-    assert all(isinstance(e,int)and(e>0) for e in (m,n,K,L,u)),"error3"
+    assert all(isinstance(e,int)and(e>0) for e in (m,n,k,l,u)),"error3"
     #take care of variable space_between_classes:
     assert space_between_classes in (False,None,True) or 0 < space_between_classes < .7,"error4"
     if space_between_classes:
@@ -40,7 +38,7 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16,
     if seed:
         if seed is True:
             from random import randint
-            seed = randint(0,int(2**32-1))
+            seed = randint(0, 1E4)  # int(2**32-1)
             print("random seed =", seed)
             make_data_for_ANN.seed = seed
         np.random.seed(seed)
@@ -58,22 +56,24 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16,
     X = np.random.uniform(-1,1, size=(m,n))
 
     #GENERATE APPROPRIATE WEIGHTS (in a loop)
-    shapes = (n,) + (u,)*L + (K,)  #e.g. (3, 32, 32, 2)
+    shapes = (n,) + (u,)*l + (k,)  #e.g. (3, 32, 32, 2)
+    shapes = tuple(zip(shapes[1:], shapes[:-1]))  #shape-tuples
     temp = (0, 'y')
-    for attempt in range(300):  # number of attempts to produce a balanced dataset
-        g = zip(shapes[1:], shapes[:-1])  #shape-tuples
-        WW = [np.random.normal(loc=0, scale=1, size=shape) for shape in g]
-
+    
+    for attempt in range(500):  # number of attempts to produce a balanced dataset
+        WW = [np.random.normal(loc=np.random.uniform(-0.5, 0.5), scale=5, size=shape) for shape in shapes]
+        bb = [np.random.normal(loc=np.random.uniform(-1, 1), scale=np.random.uniform(0,5), size=shape[0])[:,None] for shape in shapes]
+        
         #forward propagation
         A = X.T
-        for l,W in enumerate(WW):
-            Z = np.matmul(W,A)
+        for l,(W,b) in enumerate(zip(WW,bb)):
+            Z = np.matmul(W,A) + b
             A = (np.tanh if l<len(WW)-1 else softmax)(Z)
         P = A.T
         y = A.T.argmax(1)
         
         #check presence of all classes and class balance:
-        if len(set(y)) == K: #ensures all classes are present (although maybe unbalanced)
+        if len(set(y)) == k: #ensures all classes are present (although maybe unbalanced)
             if not balanced_classes: break
             H = avg_entropy(y)
             if H >= balanced_classes: break
@@ -84,7 +84,7 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16,
         warn(msg, Warning)
         y = temp[1]  # get the labels with the best yet average entropy
         #check the y
-        if isinstance(y, str) or len(set(y))<K:
+        if isinstance(y, str) or len(set(y)) < k:
             class MissingClasses(BaseException):pass
             msg = "Generated labels miss a class or classes. Increase the number of units/layers"
             raise MissingClasses(msg)
@@ -111,7 +111,7 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16,
             X = np.vstack([X,Xadditional])
             y = np.concatenate([y,yadditional])
             m = len(y)    #do not delete this!
-            if len(set(y))<K:
+            if len(set(y)) < k:
                 from warnings import warn
                 msg = "missing class(es)! Turn on 'balanced_classes', deactivate 'space_between_classes' or increase m"
                 warn(msg, Warning)
@@ -142,7 +142,7 @@ def make_data_for_ANN(m=100, n=3, K=2, L=1, u=16,
 
 
 if __name__ == '__main__':  #DEMO
-    X,y = make_data_for_ANN(m=10000, n=2, K=5, L=2, u=16, 
+    X,y = make_data_for_ANN(m=10000, n=2, k=5, l=2, u=8, 
                             balanced_classes=True, space_between_classes=True, 
                             gmm=True, seed=True)
 
@@ -161,6 +161,4 @@ if __name__ == '__main__':  #DEMO
         import matplotlib.pyplot as plt
         plt.scatter(*X.T, c=y, s=5, cmap='rainbow')
         plt.show()
-
-
 
