@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 def make_adjacency_matrix(n_nodes, density=None, seed=None):
     """makes a random adjacency matrix representing a graph"""
     n = n_nodes
-    p = density or 0.1
+    p = density or np.log(n_nodes)/10/n_nodes
+    print(p)
     
     # Random seed
     if seed is True:
@@ -36,7 +37,7 @@ def make_adjacency_matrix(n_nodes, density=None, seed=None):
 
 
 #display the graph
-mx = make_adjacency_matrix(n_nodes=10, seed=True)
+mx = make_adjacency_matrix(n_nodes=20, seed=True)
 G = nx.from_numpy_matrix(mx)
 nx.draw(G, with_labels=True)
 print(mx)
