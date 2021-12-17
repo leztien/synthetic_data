@@ -1,7 +1,6 @@
 
 """
-make data for decision trees
-(the code needs tweaking)
+make data for decision trees  (the code needs tweaking)
 """
 
 
@@ -85,26 +84,22 @@ def make_data_for_decision_trees(m, n, k, proportion_of_binary_features = None):
 ###############################################################
 
 
-m = 100
-n = 5
-k = 3
-
-proportion_of_binary_features = None
-
-
-X,y = make_data_for_decision_trees(m=400, n=5, k=3)
-
-print(y)
-print(k)
-print(np.bincount(y))
-
-
-# TEST
-from sklearn.tree import DecisionTreeClassifier
-md = DecisionTreeClassifier()
-md.fit(X,y)
-acc = md.score(X,y)
-print(acc)
-
-
-
+if __name__ == '__main__':
+    m = 400
+    n = 5
+    k = 3
+    
+    X,y = make_data_for_decision_trees(m=400, n=5, k=3,
+                                       proportion_of_binary_features=None)
+    
+    print(y)
+    print(k)
+    print(np.bincount(y))
+    
+    
+    # TEST
+    from sklearn.tree import DecisionTreeClassifier
+    md = DecisionTreeClassifier()
+    md.fit(X,y)
+    acc = md.score(X,y)
+    print(acc)
