@@ -1,2 +1,3 @@
-# synthetic_datasets
-utilities for creating toy datasets for further ML analysis
+utilities that create random toy datasets, that can be used to check the functioning of Machine Learning algorithms
+
+
