@@ -1,4 +1,9 @@
 
+import os
+from urllib.request import urlopen
+from tempfile import mkstemp
+
+
 def get_module_from_github(url):
     """
     Loads a .py module from github (raw)
