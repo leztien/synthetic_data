@@ -7,6 +7,7 @@ my function to load a module from github
 
 def load_from_github(url):
     """
+    Version 1.0
     older version that doesn't use tempfile
     """
     from urllib.request import urlopen
@@ -23,8 +24,37 @@ def load_from_github(url):
     return module
 
 
+def get_module_from_github(url):
+    """
+    Version 2.0
+    Loads a .py module from github (raw)
+    Returns a module object
+    """
+    import os
+    from urllib.request import urlopen
+    from tempfile import mkstemp
+    
+    with urlopen(url) as response:
+        if response.code == 200:
+            text = str(response.read(), encoding="utf-8")
+    
+    _, path = mkstemp(suffix=".py", text=True)
+    
+    with open(path, mode='wt', encoding='utf-8') as fh:
+        fh.write(text)
+    
+    directory, file_name = os.path.split(path)
+    working_dir = os.getcwd()
+    os.chdir(directory)
+    module = __import__(file_name[:-3])
+    os.chdir(working_dir)
+    os.remove(path)
+    return module
+
+
 def load_module_from_github(url):
     """
+    Version 3.0
     Loads a module from github (url to the raw file)
     returns a Python module.
     Copy this function into your code
